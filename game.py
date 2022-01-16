@@ -1,12 +1,21 @@
 from spades import Spades
-from agent import DummyAgent
+from agent import DummyAgent, UserAgent
 
 
-def main():
+def dummy_game():
     players = []
     for _ in range(4):
         players.append(DummyAgent())
-    spades_game = Spades(players)
+    return players
+
+
+def one_user_game():
+    players = [DummyAgent(), UserAgent(), DummyAgent(), DummyAgent()]
+    return players
+
+
+def main():
+    spades_game = Spades(dummy_game())
     spades_game.game()
 
 
