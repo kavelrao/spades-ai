@@ -1,7 +1,6 @@
 import numpy as np
 
 from spades import Bid, Card, Hand
-from util import get_first_one_2d
 
 
 class AgentBase:
@@ -43,10 +42,11 @@ class DummyAgent(AgentBase):
         return Bid(3)
     
     def get_play(self, turn_index, bids, scores, previous_play, turn_cards, suit):
+        # if we don't need to match suit, play the first card
         if turn_index == 0 or not self.hand.has_suit(suit):
             return self.hand.play_card(self.hand[0])
 
-        # if it needs to match the suit
+        # if we need to match suit, play first card that is valid suit
         for card in self.hand.cards:
             if card.suit() == suit:
                 return self.hand.play_card(card)

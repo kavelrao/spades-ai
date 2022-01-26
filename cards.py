@@ -35,10 +35,14 @@ CARD_MAP = {
 
 
 class Bid:
+    MIN_BID = 0
+    MAX_BID = 13
+    BID_LEN = 14  # 14 possible values, so array is 14 elements long
+
     def __init__(self, value):
-        if value < -1 or value > 13:
+        if value < Bid.MIN_BID - 1 or value > Bid.MAX_BID:
             raise AttributeError("Bid() argument 'value' out of valid range [0, 13]")
-        self.array = np.zeros((1, 14))
+        self.array = np.zeros((1, Bid.BID_LEN))
         self.value = value
         if value > -1:
             self.array[0, value] = 1
@@ -49,7 +53,7 @@ class Bid:
         Initializes a Bid from a representative array
         """
         try:
-            if array.shape == (1, 14):
+            if array.shape == (1, Bid.BID_LEN):
                 value = get_first_one_2d(array, 0)
                 return cls(value)
             else:
@@ -62,7 +66,7 @@ class Bid:
         """
         Converts a list of n bids to a (n, 14) array where each row is a one-hot vector of the bid
         """
-        arr = np.zeros((n, 14))
+        arr = np.zeros((n, Bid.BID_LEN))
         for i, bid in enumerate(bids):
             arr[i] = bid.array
         return arr
@@ -93,10 +97,13 @@ class Bid:
 
 
 class Card:
+    CARD_LEN = 52  # 52 possible values, so array is 52 elements long
+    SUIT_LEN = 13  # 13 cards in each suit
+
     def __init__(self, value):
-        if value < -1 or value > 51:
-            raise AttributeError("Card() argument 'value' out of valid range [-1 -51]")
-        self.array = np.zeros((1, 52))
+        if value < -1 or value > Card.CARD_LEN - 1:
+            raise AttributeError("Card() argument 'value' out of valid range [-1, 51]")
+        self.array = np.zeros((1, Card.CARD_LEN))
         self.value = value
         if value > -1:
             self.array[0, value] = 1
@@ -107,7 +114,7 @@ class Card:
         Initializes a Card from a representative array
         """
         try:
-            if array.shape == (1, 52):
+            if array.shape == (1, Card.CARD_LEN):
                 value = get_first_one_2d(array, 0)
                 return cls(value)
             else:
@@ -116,11 +123,11 @@ class Card:
             raise TypeError("from_array() argument 'array' is missing or invalid type")
 
     def suit(self) -> Suits:
-        return Suits(self.value // 13)
+        return Suits(self.value // Card.SUIT_LEN)
 
     def is_better(self, other):
         if self.suit() == other.suit():
-            return self.value % 13 > other.value % 13
+            return self.value % Card.SUIT_LEN > other.value % Card.SUIT_LEN
         else:
             return self.suit() == Suits['SPADES']
 
@@ -134,7 +141,7 @@ class Card:
         """
         Converts a list of n cards to a (n, 52) array where each row is a one-hot vector of the card
         """
-        arr = np.zeros((n, 52))
+        arr = np.zeros((n, Card.CARD_LEN))
         for i, card in enumerate(cards):
             arr[i] = card.array
         return arr
@@ -169,8 +176,10 @@ class Card:
 
 
 class Hand:
+    HAND_LEN = 13  # 13 cards in a hand
+
     def __init__(self):
-        self.array = np.zeros((1, 52))
+        self.array = np.zeros((1, Card.CARD_LEN))
         self.cards = list()
 
     def deal(self, card):
