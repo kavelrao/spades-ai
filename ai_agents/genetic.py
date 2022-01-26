@@ -1,5 +1,4 @@
 import numpy as np
-import random
 import multiprocessing
 
 from agent import AgentBase, TrainedAgent
@@ -95,7 +94,7 @@ class ConstantWeightsGenetic(TrainedAgent):
             print(f'Generation {gen_num}')
             for round_num in range(games_per_gen):
                 print(f'Round {round_num}')
-                random.shuffle(agents)
+                rng.shuffle(agents)
                 queue = multiprocessing.Queue()
                 jobs = []
 
@@ -156,7 +155,7 @@ class ConstantWeightsGenetic(TrainedAgent):
         agents = winning_agents
         for gen_num in range(num_validation_games):
             print(f'Validation game {gen_num}')
-            random.shuffle(agents)
+            rng.shuffle(agents)
             for game_num in range(population_size // 4):
                 agent_offset = game_num * 4
                 print(f'{agent_offset=}, {len(winning_agents)=}')
