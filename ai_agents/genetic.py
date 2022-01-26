@@ -61,7 +61,7 @@ class ConstantWeightsGenetic(TrainedAgent):
         """
         first_card = get_first_card(turn_cards, turn_index, starting_index)
 
-        choice_weights = self.rng.random((1, Card.CARD_LEN)) * self.play_weights
+        choice_weights = self.play_weights
         max_index = np.argmax(choice_weights)
         play_card = Spades.CARD_BANK[max_index]
         # select the highest probability card that is a valid play
@@ -74,7 +74,7 @@ class ConstantWeightsGenetic(TrainedAgent):
 
 
     @classmethod
-    def train(cls, population_size: int = 1000, select_number: int = 20, games_per_gen: int = 100, num_generations: int = 1000, num_validation_games: int = 100, mutate_threshold: int = 0.05):
+    def train(cls, population_size: int = 1000, select_number: int = 20, games_per_gen: int = 100, num_generations: int = 1000, num_validation_games: int = 100, mutate_threshold: int = 0.05, max_rounds: int = 25):
         """
         One generation per game; only the winners continue to the next generation
         """
@@ -99,7 +99,12 @@ class ConstantWeightsGenetic(TrainedAgent):
                 for game_num in range(population_size // 4):
                     agent_offset = game_num * 4
                     players = agents[agent_offset:agent_offset + 4]
-                    process = multiprocessing.Process(target=cls.multiprocess_training, args=(queue, agent_offset, players, 100))
+                    #! Uncomment below and comment process stuff to disable multiprocessing
+                    # spades_game = Spades(players, max_rounds=20)
+                    # result = spades_game.game()
+                    # result['pid'] = agent_offset
+                    # queue.put(result)
+                    process = multiprocessing.Process(target=cls.multiprocess_training, args=(queue, agent_offset, players, max_rounds))
                     process.start()
                     jobs.append(process)
                 for process in jobs:
