@@ -47,9 +47,9 @@ class ConstantWeightsGenetic(TrainedAgent):
 
     def get_bid(self, bid_state):
         """
-        Samples weighted random values and chooses the largest
+        Chooses the largest weight preference
         """
-        choice_weights = self.rng.random((1, Bid.BID_LEN)) * self.bid_weights
+        choice_weights = self.bid_weights.copy()
         bid_num = np.argmax(choice_weights)
 
         return Bid(bid_num)
@@ -117,11 +117,14 @@ class ConstantWeightsGenetic(TrainedAgent):
                         for index in results.get('winning_players'):
                             agents[agent_offset + index].win_count += 1
 
-            # crossover to repopulate
-            # mix weights by selecting one if random is below threshold, or choose the other for each weight
             winning_agents = sorted(agents, key=lambda x: x.win_count, reverse=True)[:select_number]  # choose the best ones to keep and repopulate
-            print(f'Best win rate: {winning_agents[0].win_count} / {games_per_gen}')
             agents = winning_agents.copy()
+            print('Top 4 win rates:')
+            for each_agent in winning_agents[:4]:
+                print(f'{each_agent.win_count} / {games_per_gen}')
+
+            # crossover to repopulate
+            # mix weights by selecting one if random is below threshold, or choose the other for each weight + mutation chance
             while len(agents) < population_size:
                 first_index = rng.integers(len(winning_agents))
                 while second_index := rng.integers(len(winning_agents)) == first_index:
@@ -145,7 +148,7 @@ class ConstantWeightsGenetic(TrainedAgent):
                     else:
                         new_play_weights[0, i] = first.play_weights[0, i] if rng.random() < cross_threshold else second.play_weights[0, i]
                 
-                agents.append(cls(bid_weights = new_bid_weights, play_weights=new_play_weights))
+                agents.append(cls(bid_weights=new_bid_weights, play_weights=new_play_weights))
 
             if gen_num % 20 == 0:
                 most_wins = winning_agents[0].win_count
