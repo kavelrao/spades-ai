@@ -152,13 +152,11 @@ class ConstantWeightsGenetic(TrainedAgent):
             winning_agents.clear()
 
         # after final evolution, run a number of games and output the weights with the highest win rate
-        agents = winning_agents
         for gen_num in range(num_validation_games):
             print(f'Validation game {gen_num}')
             rng.shuffle(agents)
             for game_num in range(population_size // 4):
                 agent_offset = game_num * 4
-                print(f'{agent_offset=}, {len(winning_agents)=}')
                 spades_game = Spades(agents[agent_offset:agent_offset + 4])
                 results = spades_game.game()
                 for index in results.get('winning_players'):
