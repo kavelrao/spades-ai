@@ -49,8 +49,7 @@ class ConstantWeightsGenetic(TrainedAgent):
         """
         Chooses the largest weight preference
         """
-        choice_weights = self.bid_weights.copy()
-        bid_num = np.argmax(choice_weights)
+        bid_num = np.argmax(self.bid_weights)
 
         return Bid(bid_num)
 
@@ -82,7 +81,7 @@ class ConstantWeightsGenetic(TrainedAgent):
 
         if population_size % 4 != 0:
             raise AttributeError("population size must be a multiple of 4")
-        
+
         # initialize the first population of agents
         agents = list()
         for _ in range(population_size):
@@ -131,7 +130,7 @@ class ConstantWeightsGenetic(TrainedAgent):
                     pass
                 first = agents[first_index]
                 second = agents[second_index]
-                
+
                 cross_threshold = rng.random()
 
                 new_bid_weights = np.zeros((1, Bid.BID_LEN))
@@ -147,7 +146,7 @@ class ConstantWeightsGenetic(TrainedAgent):
                         new_play_weights[0, i] = rng.random()
                     else:
                         new_play_weights[0, i] = first.play_weights[0, i] if rng.random() < cross_threshold else second.play_weights[0, i]
-                
+
                 agents.append(cls(bid_weights=new_bid_weights, play_weights=new_play_weights))
 
             if gen_num % 20 == 0:
@@ -196,7 +195,7 @@ class ConstantWeightsGenetic(TrainedAgent):
             np.save(f, best_agent.bid_weights)
         with open('output/constant_weights_genetic__play_weights', 'wb') as f:
             np.save(f, best_agent.play_weights)
-    
+
     @staticmethod
     def multiprocess_training(queue, pid, players, max_rounds):
         spades_game = Spades(players, max_rounds=max_rounds)
