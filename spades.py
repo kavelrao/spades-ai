@@ -1,7 +1,7 @@
 import numpy as np
 
 from cards import Bid, Card, Hand, Suits
-from util import get_first_one_2d
+from util import get_first_card, get_first_one_2d
 from agent import AgentBase
 
 
@@ -52,7 +52,6 @@ class Spades:
         return bid_state
 
     def turn(self, bids, previous_play):
-        print(f'Starting player: {self.starting_player}')
         played_cards = [BLANK_CARD] * Spades.NUM_PLAYERS
         first_card = BLANK_CARD
         winning_card = BLANK_CARD
@@ -61,16 +60,14 @@ class Spades:
         player_order = self.players[self.starting_player:] + self.players[:self.starting_player]
         for i, player in enumerate(player_order):
             player_id = player.player_id  # store plays in order of the player ID's
-            new_card = player.get_play(i, bids, self.scores, previous_play, played_cards, first_card.suit())
+            new_card = player.get_play(i, bids, self.scores, previous_play, played_cards, self.starting_player, self.spades_broken)
 
             if player.hand.has_card(new_card):
                 raise AttributeError(f"Card played by player id {player_id} is still in their hand")
-            if player_id != self.starting_player and not new_card.is_valid_play(first_card, player.hand):
+            if not new_card.is_valid_play(player.hand, self.spades_broken, get_first_card(played_cards, i, self.starting_player)):
                 raise ValueError(f"Card played by player id {player_id} is invalid")
+
             if new_card.suit() == Suits['SPADES'] and not self.spades_broken:
-                if player_id == self.starting_player:
-                    if any(player.hand.has_suit(suit) for suit in [Suits['CLUBS'], Suits['DIAMONDS'], Suits['HEARTS']]):
-                        raise ValueError(f"Card played by player id {player_id} illegally broke spades")
                 self.spades_broken = True
 
             played_cards[player_id] = new_card
@@ -83,10 +80,10 @@ class Spades:
                     winning_player = player_id
 
         trick[0, winning_player] = 1
-        print('Played cards:')
-        print(played_cards)
-        print(f'Player {winning_player} takes the trick with the {winning_card}')
-        print()
+        # print('Played cards:')
+        # print(played_cards)
+        # print(f'Player {winning_player} takes the trick with the {winning_card}')
+        # print()
         return trick, played_cards
 
     def round(self):
@@ -157,12 +154,21 @@ class Spades:
 
     def game(self):
         round = 0
+        exceeded_rounds = False
         # game continues until score difference is > 500 or max score is > 500
         while np.max(self.scores[-1]) - np.min(self.scores[-1]) < self.win_points and np.max(self.scores[-1]) < self.win_points:
             self.round()
-            print(self.scores[-1])
+            # print(self.scores[-1])
             round += 1
             if round > self.max_rounds:
-                print('Exceeded max rounds')
+                # print('Exceeded max rounds')
+                exceeded_rounds = True
                 break
-        print(f'Game finished after {round} rounds')
+        # print(f'Game finished after {round} rounds with final score')
+        # print(self.scores[-1])
+
+        if exceeded_rounds:
+            return dict(winning_players=None, rounds=round)
+        else:
+            winning_team = np.argmax(self.scores[-1])
+            return dict(winning_players=[winning_team, winning_team + 2], rounds=round)

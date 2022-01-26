@@ -131,10 +131,20 @@ class Card:
         else:
             return self.suit() == Suits['SPADES']
 
-    def is_valid_play(self, other, hand):
-        if self.suit() == other.suit():
+    def is_valid_play(self, hand, spades_broken, first_card=None, check_hand=False):
+        """
+        check_hand: if False, won't see if the card was in the hand
+        """
+        if check_hand and not hand.has_card(self):  # can't play a card you don't have
+            return False
+
+        if first_card is None:  # first_card should be None if this one is the first card played in the turn
+            return self.suit() != Suits['SPADES'] or spades_broken or not any(hand.has_suit(suit) for suit in [Suits['CLUBS'], Suits['DIAMONDS'], Suits['HEARTS']])
+
+        if self.suit() == first_card.suit():
             return True
-        return not hand.has_suit(other.suit())
+
+        return not hand.has_suit(first_card.suit())
 
     @staticmethod
     def list_to_np(cards, n=13):
