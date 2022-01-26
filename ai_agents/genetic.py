@@ -61,7 +61,7 @@ class ConstantWeightsGenetic(TrainedAgent):
         """
         first_card = get_first_card(turn_cards, turn_index, starting_index)
 
-        choice_weights = self.play_weights
+        choice_weights = self.play_weights.copy()
         max_index = np.argmax(choice_weights)
         play_card = Spades.CARD_BANK[max_index]
         # select the highest probability card that is a valid play
