@@ -73,7 +73,7 @@ class ConstantWeightsGenetic(TrainedAgent):
 
 
     @classmethod
-    def train(cls, population_size: int = 1000, select_number: int = 20, games_per_gen: int = 100, num_generations: int = 1000, num_validation_games: int = 100, mutate_threshold: int = 0.05, max_rounds: int = 25):
+    def train(cls, population_size: int = 1000, select_number: int = 20, games_per_gen: int = 100, num_generations: int = 1000, num_validation_games: int = 100, mutate_threshold: int = 0.15, max_rounds: int = 25):
         """
         One generation per game; only the winners continue to the next generation
         """
@@ -133,18 +133,18 @@ class ConstantWeightsGenetic(TrainedAgent):
 
                 cross_threshold = rng.random()
 
-                new_bid_weights = np.zeros((1, Bid.BID_LEN))
-                for i in range(Bid.BID_LEN):
-                    if rng.random() < mutate_threshold:
-                        new_bid_weights[0, i] = rng.random()
-                    else:
+                if rng.random() < mutate_threshold:
+                    new_bid_weights = rng.random((1, Bid.BID_LEN))
+                else:
+                    new_bid_weights = np.zeros((1, Bid.BID_LEN))
+                    for i in range(Bid.BID_LEN):
                         new_bid_weights[0, i] = first.bid_weights[0, i] if rng.random() < cross_threshold else second.bid_weights[0, i]
 
-                new_play_weights = np.zeros((1, Card.CARD_LEN))
-                for i in range(Card.CARD_LEN):
-                    if rng.random() < mutate_threshold:
-                        new_play_weights[0, i] = rng.random()
-                    else:
+                if rng.random() < mutate_threshold:
+                    new_bid_weights = rng.random((1, Bid.BID_LEN))
+                else:
+                    new_play_weights = np.zeros((1, Card.CARD_LEN))
+                    for i in range(Card.CARD_LEN):
                         new_play_weights[0, i] = first.play_weights[0, i] if rng.random() < cross_threshold else second.play_weights[0, i]
 
                 agents.append(cls(bid_weights=new_bid_weights, play_weights=new_play_weights))
