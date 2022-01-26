@@ -159,8 +159,9 @@ class ConstantWeightsGenetic(TrainedAgent):
                 agent_offset = game_num * 4
                 spades_game = Spades(agents[agent_offset:agent_offset + 4])
                 results = spades_game.game()
-                for index in results.get('winning_players'):
-                    agents[agent_offset + index].win_count += 1
+                if results.get('winning_players') is not None:
+                    for index in results.get('winning_players'):
+                        agents[agent_offset + index].win_count += 1
 
         most_wins = agents[0].win_count
         best_agent = agents[0]
