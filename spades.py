@@ -11,6 +11,7 @@ BLANK_CARD = Card(-1)
 
 class Spades:
     NUM_PLAYERS = 4
+    CARD_BANK = [Card(i) for i in range(Card.CARD_LEN)]
 
     def __init__(self, players, null_points: int = 100, win_points: int = 500, max_rounds: int = 1000):
         self.players = players
@@ -39,7 +40,7 @@ class Spades:
             for player in range(Spades.NUM_PLAYERS):
                 card_index = np.random.randint(0, len(deck_cards))
                 card = deck_cards[card_index]
-                player_hands[player].deal(Card(card))
+                player_hands[player].deal(Spades.CARD_BANK[card])
                 deck_cards.pop(card_index)
         for i, player in enumerate(self.players):
             player.deal(player_hands[i], i)

@@ -63,12 +63,12 @@ class ConstantWeightsGenetic(TrainedAgent):
 
         choice_weights = self.rng.random((1, Card.CARD_LEN)) * self.play_weights
         max_index = np.argmax(choice_weights)
-        play_card = Card(max_index)
+        play_card = Spades.CARD_BANK[max_index]
         # select the highest probability card that is a valid play
         while not play_card.is_valid_play(self.hand, spades_broken, first_card, check_hand=True):
             choice_weights[0, max_index] = 0
             max_index = np.argmax(choice_weights)
-            play_card = Card(max_index)
+            play_card = Spades.CARD_BANK[max_index]
 
         return self.hand.play_card(play_card)
 
@@ -85,10 +85,8 @@ class ConstantWeightsGenetic(TrainedAgent):
         
         # initialize the first population of agents
         agents = list()
-        agents_history = list()
         for _ in range(population_size):
             agents.append(cls())
-        agents_history.append(agents)
 
         for gen_num in range(num_generations):
             print(f'Generation {gen_num}')
@@ -101,7 +99,7 @@ class ConstantWeightsGenetic(TrainedAgent):
                 for game_num in range(population_size // 4):
                     agent_offset = game_num * 4
                     players = agents[agent_offset:agent_offset + 4]
-                    process = multiprocessing.Process(target=ConstantWeightsGenetic.multiprocess_training, args=(queue, agent_offset, players, 100))
+                    process = multiprocessing.Process(target=cls.multiprocess_training, args=(queue, agent_offset, players, 100))
                     process.start()
                     jobs.append(process)
                 for process in jobs:
@@ -113,9 +111,6 @@ class ConstantWeightsGenetic(TrainedAgent):
                     if results.get('winning_players') is not None:
                         for index in results.get('winning_players'):
                             agents[agent_offset + index].win_count += 1
-
-
-            agents_history.append(agents)
 
             # crossover to repopulate
             # mix weights by selecting one if random is below threshold, or choose the other for each weight
@@ -147,8 +142,23 @@ class ConstantWeightsGenetic(TrainedAgent):
                 
                 agents.append(cls(bid_weights = new_bid_weights, play_weights=new_play_weights))
 
+            if gen_num % 20 == 0:
+                most_wins = winning_agents[0].win_count
+                best_agent = winning_agents[0]
+                for agent in winning_agents:
+                    if agent.win_count > most_wins:
+                        most_wins = agent.win_count
+                        best_agent = agent
+                with open(f'output/stats_checkpoint_{gen_num}.txt', 'w+') as f:
+                    f.write(f'WIN_RATE: {best_agent.win_count} / {num_validation_games}')
+                with open(f'output/constant_weights_genetic__bid_weights_checkpoint_{gen_num}', 'wb') as f:
+                    np.save(f, best_agent.bid_weights)
+                with open(f'output/constant_weights_genetic__play_weights_checkpoint_{gen_num}', 'wb') as f:
+                    np.save(f, best_agent.play_weights)
+
             for agent in winning_agents:
                 agent.win_count = 0
+
             winning_agents.clear()
 
         # after final evolution, run a number of games and output the weights with the highest win rate
