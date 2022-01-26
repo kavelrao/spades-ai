@@ -147,7 +147,9 @@ class ConstantWeightsGenetic(TrainedAgent):
                         new_play_weights[0, i] = first.play_weights[0, i] if rng.random() < cross_threshold else second.play_weights[0, i]
                 
                 agents.append(cls(bid_weights = new_bid_weights, play_weights=new_play_weights))
-            
+
+            for agent in winning_agents:
+                agent.win_count = 0
             winning_agents.clear()
 
         # after final evolution, run a number of games and output the weights with the highest win rate
