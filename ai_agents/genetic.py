@@ -1,12 +1,12 @@
 import os
 import ujson
-from time import perf_counter
 import numpy as np
+import queue
 import multiprocessing
 
 from agent import AgentBase, TrainedAgent
 from cards import Bid, Card, Hand
-from util import get_first_card, get_first_one_2d
+from util import get_first_card, get_first_one_2d, logger
 from spades import Spades, multiprocess_spades_game
 
 
@@ -127,7 +127,8 @@ class ConstantWeightsGenetic(TrainedAgent):
             for round_num in range(games_per_gen):
                 print(f'Round {round_num}')
                 rng.shuffle(agents)
-                queue = multiprocessing.Queue()
+                mp_queue = multiprocessing.Queue()
+                compiled_results = queue.Queue()
                 jobs = []
                 for game_num in range(population_size // 4):
                     agent_offset = game_num * 4
@@ -137,22 +138,24 @@ class ConstantWeightsGenetic(TrainedAgent):
                     # result = spades_game.game()
                     # result['pid'] = agent_offset
                     # queue.put(result)
-                    process = multiprocessing.Process(target=cls.multiprocess_training, args=(queue, agent_offset, players, max_rounds))
+                    process = multiprocessing.Process(target=multiprocess_spades_game, args=(mp_queue, agent_offset, players), kwargs=dict(max_rounds=max_rounds))
                     jobs.append(process)
                     process.start()
 
                     # wait for core_count processes at a time since only that many can run simultaneously
-                    if len(jobs) == core_count:
+                    if len(jobs) == core_count or len(jobs) == population_size // 4:
+                        [compiled_results.put(mp_queue.get()) for process in jobs]
                         for process in jobs:
                             process.join()
+                            logger.debug('process terminated', exitcode=process.exitcode)
                         jobs.clear()
 
-                while not queue.empty():
-                    results = queue.get()
-                    agent_offset = results.get('pid')
-                    if results.get('winning_players') is not None:
-                        for index in results.get('winning_players'):
-                            agents[agent_offset + index].win_count += 1
+            while not compiled_results.empty():
+                results = compiled_results.get()
+                agent_offset = results.get('pid')
+                if results.get('winning_players') is not None:
+                    for index in results.get('winning_players'):
+                        agents[agent_offset + index].win_count += 1
 
             winning_agents = sorted(agents, key=lambda x: x.win_count, reverse=True)[:select_number]  # choose the best ones to keep and repopulate
             agents = winning_agents.copy()
@@ -203,7 +206,7 @@ class ConstantWeightsGenetic(TrainedAgent):
         for gen_num in range(num_validation_games):
             print(f'Validation game {gen_num}')
             rng.shuffle(agents)
-            queue = multiprocessing.Queue()
+            mp_queue = multiprocessing.Queue()
             jobs = []
             for game_num in range(population_size // 4):
                 agent_offset = game_num * 4
@@ -213,18 +216,18 @@ class ConstantWeightsGenetic(TrainedAgent):
                 # result = spades_game.game()
                 # result['pid'] = agent_offset
                 # queue.put(result)
-                process = multiprocessing.Process(target=cls.multiprocess_training, args=(queue, agent_offset, players, max_rounds))
+                process = multiprocessing.Process(target=multiprocess_spades_game, args=(mp_queue, agent_offset, players), kwargs=dict(max_rounds=max_rounds))
                 process.start()
                 jobs.append(process)
 
                 # wait for core_count processes at a time since only that many can run simultaneously
-                if len(jobs) == core_count:
+                if len(jobs) == core_count or len(jobs) == population_size // 4 - 1:
                     for process in jobs:
                         process.join()
                     jobs.clear()
 
-            while not queue.empty():
-                results = queue.get()
+            while not mp_queue.empty():
+                results = mp_queue.get()
                 agent_offset = results.get('pid')
                 if results.get('winning_players') is not None:
                     for index in results.get('winning_players'):
@@ -245,10 +248,3 @@ class ConstantWeightsGenetic(TrainedAgent):
             np.save(f, best_agent.bid_weights)
         with open(f'{output_folder}/play_weights_final', 'wb') as f:
             np.save(f, best_agent.play_weights)
-
-    @staticmethod
-    def multiprocess_training(queue, pid, players, max_rounds):
-        spades_game = Spades(players, max_rounds=max_rounds)
-        result = spades_game.game()
-        result['pid'] = pid
-        queue.put(result)

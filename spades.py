@@ -1,8 +1,9 @@
 import sys
 import numpy as np
+from copy import deepcopy
 
 from cards import Bid, Card, Hand, Suits
-from util import get_first_card, get_first_one_2d# , logger
+from util import get_first_card, get_first_one_2d, logger
 from agent import AgentBase
 
 
@@ -183,7 +184,7 @@ class Spades:
         else:
             winning_team = np.argmax(self.scores[-1])
             results['winning_players'] = [winning_team, winning_team + 2]
-        results['scores'] = self.scores
+        results['scores'] = np.copy(self.scores)
         results['bids'] = self.bids
         results['tricks'] = self.tricks
         results['cards_played'] = self.cards_played
@@ -196,10 +197,8 @@ def multiprocess_spades_game(queue, pid, players, **kwargs):
     Plays one spades game and puts the results into the given queue.
     Meant to use with multiprocessing to parallelize games.
     """
-    # logger.info('Starting process', pid=pid, kwargs=kwargs)
     spades_game = Spades(players, **kwargs)
     results = spades_game.game()
     results['pid'] = pid
     queue.put(results)
-    # logger.info('Ending process', pid=pid)
-    sys.exit()
+    logger.debug('done with process', pid=pid)
