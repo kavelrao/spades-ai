@@ -51,6 +51,9 @@ class ConstantWeightsGenetic(TrainedAgent):
         for i in np.where(self.play_weights[0] == 0)[0]:
             self.play_weights[0, i] = np.nextafter(0, 1)
         
+        # disable NIL bid
+        self.bid_weights[0, 0] = 0
+        
 
     def get_bid(self, bid_state):
         """
@@ -214,9 +217,9 @@ class ConstantWeightsGenetic(TrainedAgent):
 
         with open(f'{output_folder}/stats.txt', 'w+') as f:
             f.write(f'WIN_RATE: {best_agent.win_count} / {num_validation_games}')
-        with open(f'{output_folder}/constant_weights_genetic__bid_weights', 'wb') as f:
+        with open(f'{output_folder}/constant_weights_genetic__bid_weights_final', 'wb') as f:
             np.save(f, best_agent.bid_weights)
-        with open(f'{output_folder}/constant_weights_genetic__play_weights', 'wb') as f:
+        with open(f'{output_folder}/constant_weights_genetic__play_weights_final', 'wb') as f:
             np.save(f, best_agent.play_weights)
 
     @staticmethod
