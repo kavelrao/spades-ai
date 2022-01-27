@@ -1,4 +1,8 @@
+import structlog
 import numpy as np
+
+
+logger = structlog.get_logger()
 
 
 def get_first_one_1d(array):

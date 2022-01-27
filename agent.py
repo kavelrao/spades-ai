@@ -66,6 +66,23 @@ class DummyAgent(AgentBase):
                 return self.hand.play_card(card)
 
 
+class GreedyAgent(AgentBase):
+    """
+    The simplest possible Spades Agent
+    Always bids 3 and plays the lowest valid card
+    """
+
+    def get_bid(self, bid_state):
+        return Bid(3)
+    
+    def get_play(self, turn_index, bids, scores, previous_play, turn_cards, starting_index, spades_broken):
+        first_card = get_first_card(turn_cards, turn_index, starting_index)
+        # select the highest probability card that is a valid play
+        for card in self.hand.cards[::-1]:
+            if card.is_valid_play(self.hand, spades_broken, first_card):
+                return self.hand.play_card(card)
+
+
 class UserAgent(AgentBase):
     """
     A user-controlled Spades Agent

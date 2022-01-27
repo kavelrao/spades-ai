@@ -1,0 +1,13 @@
+{
+    "agent_class": "<class 'ai_agents.genetic.ConstantWeightsGenetic'>",
+    "population_size": 64,
+    "select_number": 8,
+    "games_per_gen": 10,
+    "num_generations": 10,
+    "num_validation_games": 100,
+    "mutate_threshold": 0.01,
+    "perturb_mult": 0.5,
+    "max_rounds": 25,
+    "output_folder": "output_sanity_check_64p_8s_10g",
+    "core_count": 4
+}

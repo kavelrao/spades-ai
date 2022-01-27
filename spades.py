@@ -1,7 +1,8 @@
+import sys
 import numpy as np
 
 from cards import Bid, Card, Hand, Suits
-from util import get_first_card, get_first_one_2d
+from util import get_first_card, get_first_one_2d# , logger
 from agent import AgentBase
 
 
@@ -13,7 +14,7 @@ class Spades:
     NUM_PLAYERS = 4
     CARD_BANK = [Card(i) for i in range(Card.CARD_LEN)]
 
-    def __init__(self, players, null_points: int = 100, win_points: int = 500, max_rounds: int = 1000):
+    def __init__(self, players, nil_points: int = 100, win_points: int = 500, max_rounds: int = 1000):
         self.players = players
         if len(self.players) != Spades.NUM_PLAYERS:
             raise AttributeError("Players parameter must have length 4")
@@ -21,7 +22,7 @@ class Spades:
             raise AttributeError("Players must extend AgentBase")
 
         # Game properties
-        self.null_points = null_points
+        self.nil_points = nil_points
         self.win_points = win_points
         self.max_rounds = max_rounds
 
@@ -121,16 +122,16 @@ class Spades:
             # account for null bids
             if p1_bid == 0:
                 if p1_tricks == 0:
-                    team_score += self.null_points
+                    team_score += self.nil_points
                 else:
-                    team_score -= self.null_points
+                    team_score -= self.nil_points
                     team_bags += p1_tricks
                     team_tricks -= p1_tricks  # any tricks on a null bid go straight to bags
             if p2_bid == 0:
                 if p2_tricks == 0:
-                    team_score += self.null_points
+                    team_score += self.nil_points
                 else:
-                    team_score -= self.null_points
+                    team_score -= self.nil_points
                     team_bags += p2_tricks
                     team_tricks -= p2_tricks  # any tricks on a null bid go straight to bags
 
@@ -154,12 +155,12 @@ class Spades:
         self.dealer_player = (self.dealer_player + 1) % Spades.NUM_PLAYERS
 
     def game(self):
-        #! Testing code for evolution algorithm
-        # max_3_bid = self.players[0].bid_weights[0, 2]
+        #! Sanity check testing code for evolution algorithm
+        # max_3_bid = self.players[0].bid_weights[0, 3]
         # max_3_bid_index = 0
         # for i, player in enumerate(self.players):
-            # if player.bid_weights[0, 2] > max_3_bid:
-                # max_3_bid = player.bid_weights[0, 2]
+            # if player.bid_weights[0, 3] > max_3_bid:
+                # max_3_bid = player.bid_weights[0, 3]
                 # max_3_bid_index = i
         # return dict(winning_players=[max_3_bid_index], rounds=0)
 
@@ -176,8 +177,29 @@ class Spades:
         # print(f'Game finished after {round} rounds with final score')
         # print(self.scores[-1])
 
+        results = dict()
         if exceeded_rounds:
-            return dict(winning_players=None, rounds=round)
+            results['winning_players'] = None
         else:
             winning_team = np.argmax(self.scores[-1])
-            return dict(winning_players=[winning_team, winning_team + 2], rounds=round)
+            results['winning_players'] = [winning_team, winning_team + 2]
+        results['scores'] = self.scores
+        results['bids'] = self.bids
+        results['tricks'] = self.tricks
+        results['cards_played'] = self.cards_played
+        results['rounds'] = round
+        return results
+
+
+def multiprocess_spades_game(queue, pid, players, **kwargs):
+    """
+    Plays one spades game and puts the results into the given queue.
+    Meant to use with multiprocessing to parallelize games.
+    """
+    # logger.info('Starting process', pid=pid, kwargs=kwargs)
+    spades_game = Spades(players, **kwargs)
+    results = spades_game.game()
+    results['pid'] = pid
+    queue.put(results)
+    # logger.info('Ending process', pid=pid)
+    sys.exit()

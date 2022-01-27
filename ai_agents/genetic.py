@@ -1,10 +1,13 @@
+import os
+import ujson
+from time import perf_counter
 import numpy as np
 import multiprocessing
 
 from agent import AgentBase, TrainedAgent
 from cards import Bid, Card, Hand
 from util import get_first_card, get_first_one_2d
-from spades import Spades
+from spades import Spades, multiprocess_spades_game
 
 
 class ConstantWeightsGenetic(TrainedAgent):
@@ -33,8 +36,8 @@ class ConstantWeightsGenetic(TrainedAgent):
             if self.bid_weights.shape != (1, Bid.BID_LEN):
                 raise AttributeError(f"bid weights file must encode a (1, {Bid.BID_LEN}) array")
         else:
-            self.bid_weights = self.rng.random((1, Bid.BID_LEN))
-            # self.bid_weights = np.array([[0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]])  # help it out by starting at 3
+            # self.bid_weights = self.rng.random((1, Bid.BID_LEN))
+            self.bid_weights = np.array([[0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]])  # force 3 bid every time
 
         if play_weights is not None:
             self.play_weights = play_weights
@@ -88,6 +91,25 @@ class ConstantWeightsGenetic(TrainedAgent):
         """
         One generation per game; only the winners continue to the next generation
         """
+        if not os.path.exists(output_folder):
+            os.makedirs(output_folder)
+        
+        config = dict(
+            agent_class=str(cls),
+            population_size=population_size,
+            select_number=select_number,
+            games_per_gen=games_per_gen,
+            num_generations=num_generations,
+            num_validation_games=num_validation_games,
+            mutate_threshold=mutate_threshold,
+            perturb_mult=perturb_mult,
+            max_rounds=max_rounds,
+            output_folder=output_folder,
+            core_count=core_count,
+        )
+        with open(f'{output_folder}/config.json', 'w') as f:
+            ujson.dump(config, f, indent=4)
+
         rng = np.random.default_rng()
 
         if population_size % 4 != 0:
@@ -116,8 +138,8 @@ class ConstantWeightsGenetic(TrainedAgent):
                     # result['pid'] = agent_offset
                     # queue.put(result)
                     process = multiprocessing.Process(target=cls.multiprocess_training, args=(queue, agent_offset, players, max_rounds))
-                    process.start()
                     jobs.append(process)
+                    process.start()
 
                     # wait for core_count processes at a time since only that many can run simultaneously
                     if len(jobs) == core_count:
@@ -147,9 +169,9 @@ class ConstantWeightsGenetic(TrainedAgent):
                         best_agent = agent
                 with open(f'{output_folder}/stats_checkpoint_{gen_num}.txt', 'w+') as f:
                     f.write(f'WIN_RATE: {best_agent.win_count} / {num_validation_games}')
-                with open(f'{output_folder}/constant_weights_genetic__bid_weights_checkpoint_{gen_num}', 'wb') as f:
+                with open(f'{output_folder}/bid_weights_checkpoint_{gen_num}', 'wb') as f:
                     np.save(f, best_agent.bid_weights)
-                with open(f'{output_folder}/constant_weights_genetic__play_weights_checkpoint_{gen_num}', 'wb') as f:
+                with open(f'{output_folder}/play_weights_checkpoint_{gen_num}', 'wb') as f:
                     np.save(f, best_agent.play_weights)
 
             # perturb winner weights to repopulate
@@ -169,7 +191,9 @@ class ConstantWeightsGenetic(TrainedAgent):
                     play_max = np.max(new_play_weights)
                     new_play_weights = (new_play_weights - play_min) / (play_max - play_min)
 
-                agents.append(cls(bid_weights=new_bid_weights, play_weights=new_play_weights))
+                #! switch the below two lines to toggle bid weight optimization
+                agents.append(cls(play_weights=new_play_weights))
+                # agents.append(cls(bid_weights=new_bid_weights, play_weights=new_play_weights))
                 winning_agents[index].win_count = 0  # reset while we're going through the winning agents anyway
                 index = (index + 1) % len(winning_agents)
 
@@ -217,9 +241,9 @@ class ConstantWeightsGenetic(TrainedAgent):
 
         with open(f'{output_folder}/stats.txt', 'w+') as f:
             f.write(f'WIN_RATE: {best_agent.win_count} / {num_validation_games}')
-        with open(f'{output_folder}/constant_weights_genetic__bid_weights_final', 'wb') as f:
+        with open(f'{output_folder}/bid_weights_final', 'wb') as f:
             np.save(f, best_agent.bid_weights)
-        with open(f'{output_folder}/constant_weights_genetic__play_weights_final', 'wb') as f:
+        with open(f'{output_folder}/play_weights_final', 'wb') as f:
             np.save(f, best_agent.play_weights)
 
     @staticmethod
