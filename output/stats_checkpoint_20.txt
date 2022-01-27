@@ -1,1 +1,1 @@
-WIN_RATE: 8 / 100
+WIN_RATE: 7 / 100
