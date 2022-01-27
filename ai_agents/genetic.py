@@ -82,6 +82,8 @@ class ConstantWeightsGenetic(TrainedAgent):
 
         if population_size % 4 != 0:
             raise AttributeError("population size must be a multiple of 4")
+        if population_size < select_number * 2:
+            raise AttributeError("select number must be < 1/2 of population size")
 
         # initialize the first population of agents
         agents = list()
@@ -126,6 +128,20 @@ class ConstantWeightsGenetic(TrainedAgent):
             for each_agent in winning_agents[:4]:
                 print(f'{each_agent.win_count} / {games_per_gen}')
 
+            if gen_num % 20 == 0:
+                most_wins = winning_agents[0].win_count
+                best_agent = winning_agents[0]
+                for agent in winning_agents:
+                    if agent.win_count > most_wins:
+                        most_wins = agent.win_count
+                        best_agent = agent
+                with open(f'{output_folder}/stats_checkpoint_{gen_num}.txt', 'w+') as f:
+                    f.write(f'WIN_RATE: {best_agent.win_count} / {num_validation_games}')
+                with open(f'{output_folder}/constant_weights_genetic__bid_weights_checkpoint_{gen_num}', 'wb') as f:
+                    np.save(f, best_agent.bid_weights)
+                with open(f'{output_folder}/constant_weights_genetic__play_weights_checkpoint_{gen_num}', 'wb') as f:
+                    np.save(f, best_agent.play_weights)
+
             # perturb winner weights to repopulate
             index = 0
             while len(agents) < population_size:
@@ -142,25 +158,10 @@ class ConstantWeightsGenetic(TrainedAgent):
                     play_min = np.min(new_play_weights)
                     play_max = np.max(new_play_weights)
                     new_play_weights = (new_play_weights - play_min) / (play_max - play_min)
+
                 agents.append(cls(bid_weights=new_bid_weights, play_weights=new_play_weights))
+                winning_agents[index].win_count = 0  # reset while we're going through the winning agents anyway
                 index = (index + 1) % len(winning_agents)
-
-            if gen_num % 20 == 0:
-                most_wins = winning_agents[0].win_count
-                best_agent = winning_agents[0]
-                for agent in winning_agents:
-                    if agent.win_count > most_wins:
-                        most_wins = agent.win_count
-                        best_agent = agent
-                with open(f'{output_folder}/stats_checkpoint_{gen_num}.txt', 'w+') as f:
-                    f.write(f'WIN_RATE: {best_agent.win_count} / {num_validation_games}')
-                with open(f'{output_folder}/constant_weights_genetic__bid_weights_checkpoint_{gen_num}', 'wb') as f:
-                    np.save(f, best_agent.bid_weights)
-                with open(f'{output_folder}/constant_weights_genetic__play_weights_checkpoint_{gen_num}', 'wb') as f:
-                    np.save(f, best_agent.play_weights)
-
-            for agent in winning_agents:
-                agent.win_count = 0
 
             winning_agents.clear()
 
@@ -168,10 +169,29 @@ class ConstantWeightsGenetic(TrainedAgent):
         for gen_num in range(num_validation_games):
             print(f'Validation game {gen_num}')
             rng.shuffle(agents)
+            queue = multiprocessing.Queue()
+            jobs = []
             for game_num in range(population_size // 4):
                 agent_offset = game_num * 4
-                spades_game = Spades(agents[agent_offset:agent_offset + 4])
-                results = spades_game.game()
+                players = agents[agent_offset:agent_offset + 4]
+                #! Uncomment below and comment process stuff to disable multiprocessing
+                # spades_game = Spades(players, max_rounds=20)
+                # result = spades_game.game()
+                # result['pid'] = agent_offset
+                # queue.put(result)
+                process = multiprocessing.Process(target=cls.multiprocess_training, args=(queue, agent_offset, players, max_rounds))
+                process.start()
+                jobs.append(process)
+
+                # wait for core_count processes at a time since only that many can run simultaneously
+                if len(jobs) == core_count:
+                    for process in jobs:
+                        process.join()
+                    jobs.clear()
+
+            while not queue.empty():
+                results = queue.get()
+                agent_offset = results.get('pid')
                 if results.get('winning_players') is not None:
                     for index in results.get('winning_players'):
                         agents[agent_offset + index].win_count += 1
