@@ -154,6 +154,15 @@ class Spades:
         self.dealer_player = (self.dealer_player + 1) % Spades.NUM_PLAYERS
 
     def game(self):
+        #! Testing code for evolution algorithm
+        # max_3_bid = self.players[0].bid_weights[0, 2]
+        # max_3_bid_index = 0
+        # for i, player in enumerate(self.players):
+            # if player.bid_weights[0, 2] > max_3_bid:
+                # max_3_bid = player.bid_weights[0, 2]
+                # max_3_bid_index = i
+        # return dict(winning_players=[max_3_bid_index], rounds=0)
+
         round = 0
         exceeded_rounds = False
         # game continues until score difference is > 500 or max score is > 500

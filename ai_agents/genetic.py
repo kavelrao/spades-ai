@@ -73,7 +73,8 @@ class ConstantWeightsGenetic(TrainedAgent):
 
 
     @classmethod
-    def train(cls, population_size: int = 1000, select_number: int = 20, games_per_gen: int = 100, num_generations: int = 1000, num_validation_games: int = 100, mutate_threshold: int = 0.15, max_rounds: int = 25):
+    def train(cls, population_size: int = 1000, select_number: int = 20, games_per_gen: int = 100, num_generations: int = 1000, num_validation_games: int = 100,
+              mutate_threshold: float = 0.01, perturb_mult: float = 0.1, max_rounds: int = 25, output_folder: str = 'output', core_count: int = 4):
         """
         One generation per game; only the winners continue to the next generation
         """
@@ -94,7 +95,6 @@ class ConstantWeightsGenetic(TrainedAgent):
                 rng.shuffle(agents)
                 queue = multiprocessing.Queue()
                 jobs = []
-
                 for game_num in range(population_size // 4):
                     agent_offset = game_num * 4
                     players = agents[agent_offset:agent_offset + 4]
@@ -106,8 +106,12 @@ class ConstantWeightsGenetic(TrainedAgent):
                     process = multiprocessing.Process(target=cls.multiprocess_training, args=(queue, agent_offset, players, max_rounds))
                     process.start()
                     jobs.append(process)
-                for process in jobs:
-                    process.join()
+
+                    # wait for core_count processes at a time since only that many can run simultaneously
+                    if len(jobs) == core_count:
+                        for process in jobs:
+                            process.join()
+                        jobs.clear()
 
                 while not queue.empty():
                     results = queue.get()
@@ -122,32 +126,24 @@ class ConstantWeightsGenetic(TrainedAgent):
             for each_agent in winning_agents[:4]:
                 print(f'{each_agent.win_count} / {games_per_gen}')
 
-            # crossover to repopulate
-            # mix weights by selecting one if random is below threshold, or choose the other for each weight + mutation chance
+            # perturb winner weights to repopulate
+            index = 0
             while len(agents) < population_size:
-                first_index = rng.integers(len(winning_agents))
-                while second_index := rng.integers(len(winning_agents)) == first_index:
-                    pass
-                first = agents[first_index]
-                second = agents[second_index]
-
-                cross_threshold = rng.random()
-
                 if rng.random() < mutate_threshold:
                     new_bid_weights = rng.random((1, Bid.BID_LEN))
+                    new_play_weights = rng.random((1, Card.CARD_LEN))
                 else:
-                    new_bid_weights = np.zeros((1, Bid.BID_LEN))
-                    for i in range(Bid.BID_LEN):
-                        new_bid_weights[0, i] = first.bid_weights[0, i] if rng.random() < cross_threshold else second.bid_weights[0, i]
-
-                if rng.random() < mutate_threshold:
-                    new_bid_weights = rng.random((1, Bid.BID_LEN))
-                else:
-                    new_play_weights = np.zeros((1, Card.CARD_LEN))
-                    for i in range(Card.CARD_LEN):
-                        new_play_weights[0, i] = first.play_weights[0, i] if rng.random() < cross_threshold else second.play_weights[0, i]
-
+                    new_bid_weights = perturb_mult * (rng.random((1, Bid.BID_LEN)) - 0.5) + winning_agents[index].bid_weights
+                    new_play_weights = perturb_mult * (rng.random((1, Card.CARD_LEN)) - 0.5) + winning_agents[index].play_weights
+                    # normalize values to [0, 1)
+                    bid_min = np.min(new_bid_weights)
+                    bid_max = np.max(new_bid_weights)
+                    new_bid_weights = (new_bid_weights - bid_min) / (bid_max - bid_min)
+                    play_min = np.min(new_play_weights)
+                    play_max = np.max(new_play_weights)
+                    new_play_weights = (new_play_weights - play_min) / (play_max - play_min)
                 agents.append(cls(bid_weights=new_bid_weights, play_weights=new_play_weights))
+                index = (index + 1) % len(winning_agents)
 
             if gen_num % 20 == 0:
                 most_wins = winning_agents[0].win_count
@@ -156,11 +152,11 @@ class ConstantWeightsGenetic(TrainedAgent):
                     if agent.win_count > most_wins:
                         most_wins = agent.win_count
                         best_agent = agent
-                with open(f'output/stats_checkpoint_{gen_num}.txt', 'w+') as f:
+                with open(f'{output_folder}/stats_checkpoint_{gen_num}.txt', 'w+') as f:
                     f.write(f'WIN_RATE: {best_agent.win_count} / {num_validation_games}')
-                with open(f'output/constant_weights_genetic__bid_weights_checkpoint_{gen_num}', 'wb') as f:
+                with open(f'{output_folder}/constant_weights_genetic__bid_weights_checkpoint_{gen_num}', 'wb') as f:
                     np.save(f, best_agent.bid_weights)
-                with open(f'output/constant_weights_genetic__play_weights_checkpoint_{gen_num}', 'wb') as f:
+                with open(f'{output_folder}/constant_weights_genetic__play_weights_checkpoint_{gen_num}', 'wb') as f:
                     np.save(f, best_agent.play_weights)
 
             for agent in winning_agents:
@@ -189,11 +185,11 @@ class ConstantWeightsGenetic(TrainedAgent):
 
         print(f'Best agent had a win rate of {best_agent.win_count}/{num_validation_games}')
 
-        with open('output/stats.txt', 'w+') as f:
+        with open(f'{output_folder}/stats.txt', 'w+') as f:
             f.write(f'WIN_RATE: {best_agent.win_count} / {num_validation_games}')
-        with open('output/constant_weights_genetic__bid_weights', 'wb') as f:
+        with open(f'{output_folder}/constant_weights_genetic__bid_weights', 'wb') as f:
             np.save(f, best_agent.bid_weights)
-        with open('output/constant_weights_genetic__play_weights', 'wb') as f:
+        with open(f'{output_folder}/constant_weights_genetic__play_weights', 'wb') as f:
             np.save(f, best_agent.play_weights)
 
     @staticmethod
