@@ -168,7 +168,6 @@ class Spades:
         # game continues until score difference is > 500 or max score is > 500
         while np.max(self.scores[-1]) - np.min(self.scores[-1]) < self.win_points and np.max(self.scores[-1]) < self.win_points:
             self.round()
-            # print(self.scores[-1])
             round += 1
             if round > self.max_rounds:
                 # print('Exceeded max rounds')

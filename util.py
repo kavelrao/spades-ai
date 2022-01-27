@@ -21,4 +21,4 @@ def get_first_card(turn_cards, turn_index, starting_index):
     If the current turn (turn_index) is the first turn (starting_index),
     then return None because no cards have been played yet.
     """
-    turn_cards[starting_index] if turn_index != 0 else None
+    return turn_cards[starting_index] if turn_index != 0 else None

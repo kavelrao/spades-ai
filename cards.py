@@ -203,7 +203,7 @@ class Hand:
         self.cards = sorted(self.cards)
 
     def has_card(self, card):
-        return card in self.cards # any(my_card == card for my_card in self.cards)
+        return card in self.cards
 
     def has_suit(self, suit):
         return any(card.suit() == suit for card in self.cards)

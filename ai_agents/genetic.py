@@ -45,6 +45,13 @@ class ConstantWeightsGenetic(TrainedAgent):
         else:
             self.play_weights = self.rng.random((1, Card.CARD_LEN))
 
+        # make sure no weights are zero, or infinite loops could happen when using argmax
+        for i in np.where(self.bid_weights[0] == 0)[0]:
+            self.bid_weights[0, i] = np.nextafter(0, 1)
+        for i in np.where(self.play_weights[0] == 0)[0]:
+            self.play_weights[0, i] = np.nextafter(0, 1)
+        
+
     def get_bid(self, bid_state):
         """
         Chooses the largest weight preference
@@ -151,7 +158,7 @@ class ConstantWeightsGenetic(TrainedAgent):
                 else:
                     new_bid_weights = perturb_mult * (rng.random((1, Bid.BID_LEN)) - 0.5) + winning_agents[index].bid_weights
                     new_play_weights = perturb_mult * (rng.random((1, Card.CARD_LEN)) - 0.5) + winning_agents[index].play_weights
-                    # normalize values to [0, 1)
+                    # normalize values to [0, 1]
                     bid_min = np.min(new_bid_weights)
                     bid_max = np.max(new_bid_weights)
                     new_bid_weights = (new_bid_weights - bid_min) / (bid_max - bid_min)
