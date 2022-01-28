@@ -1,4 +1,3 @@
-import multiprocessing
 import os, sys
 import fire
 import numpy as np
@@ -8,26 +7,26 @@ p = os.path.abspath('.')
 sys.path.append(p)
 from util import logger
 from cards import Card
-from spades import Spades, multiprocess_spades_game
+from spades import Spades, play_n_games
 from agent import DummyAgent, UserAgent, GreedyAgent
 from ai_agents.genetic import ConstantWeightsGenetic
 
 
-def play_n_games(players, num_games, max_rounds, core_count=4):
+def analyze_n_games(players, num_games, max_rounds, core_count=4):
     exceeded_rounds = 0
     team_0_wins = 0
     team_1_wins = 0
-    for _ in range(num_games):
-        spades_game = Spades(players)
-        results = spades_game.game()
+    compiled_results = play_n_games(players, num_games, max_rounds=max_rounds, core_count=core_count)
+    while not compiled_results.empty():
+        results = compiled_results.get()
         if results.get('winning_players') is not None:
-            if results.get('winning_players')[0] == 1:
-                team_1_wins += 1
-            else:
+            if results.get('winning_players')[0] == 0:
                 team_0_wins += 1
+            else:
+                team_1_wins += 1
         else:
             exceeded_rounds += 1
-    
+
     return exceeded_rounds, team_0_wins, team_1_wins
 
 
@@ -35,7 +34,7 @@ def cwg_vs_dummy(bid_weights, play_weights, num_games, max_rounds):
     logger.info('Playing CWG vs Dummy', num_games=num_games)
     players = [DummyAgent(), ConstantWeightsGenetic(bid_weights=bid_weights, play_weights=play_weights),
                DummyAgent(), ConstantWeightsGenetic(bid_weights=bid_weights, play_weights=play_weights)]
-    exceeded_rounds, dummy_wins, cwg_wins = play_n_games(players, num_games, max_rounds)
+    exceeded_rounds, dummy_wins, cwg_wins = analyze_n_games(players, num_games, max_rounds)
 
     return (['CWG wins', 'Dummy wins', 'Incomplete games'], [cwg_wins, dummy_wins, exceeded_rounds])
 
@@ -44,7 +43,7 @@ def cwg_vs_greedy(bid_weights, play_weights, num_games, max_rounds):
     logger.info('Playing CWG vs Greedy', num_games=num_games)
     players = [GreedyAgent(), ConstantWeightsGenetic(bid_weights=bid_weights, play_weights=play_weights),
                GreedyAgent(), ConstantWeightsGenetic(bid_weights=bid_weights, play_weights=play_weights)]
-    exceeded_rounds, greedy_wins, cwg_wins = play_n_games(players, num_games, max_rounds)
+    exceeded_rounds, greedy_wins, cwg_wins = analyze_n_games(players, num_games, max_rounds)
 
     return (['CWG wins', 'Greedy wins', 'Incomplete games'], [cwg_wins, greedy_wins, exceeded_rounds])
 
@@ -61,7 +60,7 @@ def learning_timeline(output_folder, num_games, max_rounds, gen_step=20):
         players = [GreedyAgent(), ConstantWeightsGenetic(bid_weights=bid_weights, play_weights=play_weights),
                    GreedyAgent(), ConstantWeightsGenetic(bid_weights=bid_weights, play_weights=play_weights)]
 
-        exceeded_rounds, greedy_wins, cwg_wins = play_n_games(players, num_games, max_rounds)
+        exceeded_rounds, greedy_wins, cwg_wins = analyze_n_games(players, num_games, max_rounds)
         cwg_win_rates.append(cwg_wins / (cwg_wins + greedy_wins))
         gen += gen_step
     
@@ -71,7 +70,7 @@ def learning_timeline(output_folder, num_games, max_rounds, gen_step=20):
     players = [GreedyAgent(), ConstantWeightsGenetic(bid_weights=bid_weights, play_weights=play_weights),
                GreedyAgent(), ConstantWeightsGenetic(bid_weights=bid_weights, play_weights=play_weights)]
 
-    exceeded_rounds, greedy_wins, cwg_wins = play_n_games(players, num_games, max_rounds)
+    exceeded_rounds, greedy_wins, cwg_wins = analyze_n_games(players, num_games, max_rounds)
     cwg_win_rates.append(cwg_wins / (cwg_wins + greedy_wins))
 
     return (np.arange(0, gen + 1, gen_step), cwg_win_rates)
@@ -137,7 +136,9 @@ def main(output_folder=None, bid_weights=None, play_weights=None, num_games=100,
         plt.title('Constant Weight Genetic vs Greedy Win Rate Over Time')
         plt.xlabel('Generation number')
         plt.ylabel('CWG Win Rate')
-        plt.savefig(f'{output_folder}/learning_timeline')
+        if not os.path.exists(f'{output_folder}/analysis'):
+            os.makedirs(f'{output_folder}/analysis')
+        plt.savefig(f'{output_folder}/analysis/learning_timeline')
 
     plt.show()
 

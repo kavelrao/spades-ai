@@ -1,6 +1,12 @@
+import os
 import structlog
+import logging
 import numpy as np
 
+
+structlog.configure(
+    wrapper_class=structlog.make_filtering_bound_logger(logging.DEBUG if bool(os.getenv('DEBUG')) else logging.INFO)
+)
 
 logger = structlog.get_logger()
 

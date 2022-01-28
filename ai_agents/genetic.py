@@ -86,8 +86,8 @@ class ConstantWeightsGenetic(TrainedAgent):
 
 
     @classmethod
-    def train(cls, population_size: int = 1000, select_number: int = 20, games_per_gen: int = 100, num_generations: int = 1000, num_validation_games: int = 100,
-              mutate_threshold: float = 0.01, perturb_mult: float = 0.1, max_rounds: int = 25, output_folder: str = 'output', core_count: int = 4):
+    def train(cls, population_size: int = 64, select_number: int = 8, games_per_gen: int = 100, num_generations: int = 1000, num_validation_games: int = 100,
+              mutate_threshold: float = 0.1, perturb_mult: float = 0.1, max_rounds: int = 25, output_folder: str = 'output', core_count: int = 4):
         """
         One generation per game; only the winners continue to the next generation
         """
@@ -123,9 +123,9 @@ class ConstantWeightsGenetic(TrainedAgent):
             agents.append(cls())
 
         for gen_num in range(num_generations):
-            print(f'Generation {gen_num}')
+            logger.info(f'Starting generation', generation=gen_num)
             for round_num in range(games_per_gen):
-                print(f'Round {round_num}')
+                logger.info('Starting self-play round', round_num=round_num)
                 rng.shuffle(agents)
                 mp_queue = multiprocessing.Queue()
                 compiled_results = queue.Queue()
@@ -137,7 +137,7 @@ class ConstantWeightsGenetic(TrainedAgent):
                     # spades_game = Spades(players, max_rounds=20)
                     # result = spades_game.game()
                     # result['pid'] = agent_offset
-                    # queue.put(result)
+                    # compiled_results.put(result)
                     process = multiprocessing.Process(target=multiprocess_spades_game, args=(mp_queue, agent_offset, players), kwargs=dict(max_rounds=max_rounds))
                     jobs.append(process)
                     process.start()
@@ -159,9 +159,9 @@ class ConstantWeightsGenetic(TrainedAgent):
 
             winning_agents = sorted(agents, key=lambda x: x.win_count, reverse=True)[:select_number]  # choose the best ones to keep and repopulate
             agents = winning_agents.copy()
-            print('Top 4 win rates:')
-            for each_agent in winning_agents[:4]:
-                print(f'{each_agent.win_count} / {games_per_gen}')
+            logger.info('Top 4 win rates:')
+            for i, each_agent in enumerate(winning_agents[:4]):
+                logger.info(f'\tAgent #{i+1}', win_rate=each_agent.win_count / games_per_gen)
 
             if gen_num % 20 == 0:
                 most_wins = winning_agents[0].win_count

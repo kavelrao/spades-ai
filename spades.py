@@ -1,6 +1,6 @@
-import sys
+import queue
+import multiprocessing
 import numpy as np
-from copy import deepcopy
 
 from cards import Bid, Card, Hand, Suits
 from util import get_first_card, get_first_one_2d, logger
@@ -15,7 +15,7 @@ class Spades:
     NUM_PLAYERS = 4
     CARD_BANK = [Card(i) for i in range(Card.CARD_LEN)]
 
-    def __init__(self, players, nil_points: int = 100, win_points: int = 500, max_rounds: int = 1000):
+    def __init__(self, players, *args, nil_points: int = 100, win_points: int = 500, max_rounds: int = 1000, **kwargs):
         self.players = players
         if len(self.players) != Spades.NUM_PLAYERS:
             raise AttributeError("Players parameter must have length 4")
@@ -56,7 +56,6 @@ class Spades:
 
     def turn(self, bids, previous_play):
         played_cards = [BLANK_CARD] * Spades.NUM_PLAYERS
-        first_card = BLANK_CARD
         winning_card = BLANK_CARD
         winning_player = self.starting_player  # first card played is automatically "winning" before any other plays
         trick = np.zeros((1, Spades.NUM_PLAYERS))  # set to one for the player that wins the trick
@@ -73,20 +72,18 @@ class Spades:
             if new_card.suit() == Suits['SPADES'] and not self.spades_broken:
                 self.spades_broken = True
 
-            played_cards[player_id] = new_card
+            logger.debug('Card played', player=player_id, card=new_card, hand=player.hand, player_type=type(player))
 
             if player_id == self.starting_player:
-                first_card = new_card
                 winning_card = new_card
             elif new_card.is_better(winning_card):
                     winning_card = new_card
                     winning_player = player_id
+            played_cards[player_id] = new_card
 
         trick[0, winning_player] = 1
-        # print('Played cards:')
-        # print(played_cards)
-        # print(f'Player {winning_player} takes the trick with the {winning_card}')
-        # print()
+        logger.debug(f'Trick won', winner=winning_player, card=winning_card)
+        logger.debug('')
         return trick, played_cards
 
     def round(self):
@@ -102,6 +99,7 @@ class Spades:
         turn_cards = [BLANK_CARD] * Spades.NUM_PLAYERS
 
         for turn in range(Hand.HAND_LEN):
+            logger.debug('Starting turn', turn=turn)
             turn_tricks, turn_cards = self.turn(round_bids, turn_cards)  # feed in bid and previous turn info
             round_tricks = np.concatenate((round_tricks, turn_tricks.reshape((1, 1, Spades.NUM_PLAYERS))))
             round_cards.append(turn_cards)
@@ -114,8 +112,8 @@ class Spades:
             team_bags = 0
             prev_score = self.scores[-1, 0, team]
             prev_bags = prev_score % 10
-            p1_bid = round_bids[team].value  # get_first_one_2d(round_bids, team)
-            p2_bid = round_bids[team + 2].value  # get_first_one_2d(round_bids, team + 2)
+            p1_bid = round_bids[team].value
+            p2_bid = round_bids[team + 2].value
             team_bid = p1_bid + p2_bid
             p1_tricks = np.sum(round_tricks[:, 0, team])
             p2_tricks = np.sum(round_tricks[:, 0, team + 2])
@@ -175,8 +173,7 @@ class Spades:
                 # print('Exceeded max rounds')
                 exceeded_rounds = True
                 break
-        # print(f'Game finished after {round} rounds with final score')
-        # print(self.scores[-1])
+        logger.debug(f'Game finished', rounds=round, final_score=self.scores[-1])
 
         results = dict()
         if exceeded_rounds:
@@ -202,3 +199,30 @@ def multiprocess_spades_game(queue, pid, players, **kwargs):
     results['pid'] = pid
     queue.put(results)
     logger.debug('done with process', pid=pid)
+
+
+def play_n_games(players, num_games, *args, core_count=4, **kwargs):
+    """
+    Plays N games with the given players and returns the results in a Queue
+    """
+    mp_queue = multiprocessing.Queue()
+    compiled_results = queue.Queue()
+    jobs = []
+    for game_num in range(num_games):
+        agent_offset = game_num * 4
+        #! Uncomment below and comment process stuff to disable multiprocessing
+        # spades_game = Spades(players, max_rounds=20)
+        # result = spades_game.game()
+        # result['pid'] = agent_offset
+        # compiled_results.put(result)
+        process = multiprocessing.Process(target=multiprocess_spades_game, args=(mp_queue, agent_offset, players), kwargs=kwargs)
+        jobs.append(process)
+        process.start()
+
+        # wait for core_count processes at a time since only that many can run simultaneously
+        if len(jobs) == core_count or len(jobs) == num_games:
+            [compiled_results.put(mp_queue.get()) for process in jobs]
+            for process in jobs:
+                process.join()
+            jobs.clear()
+    return compiled_results

@@ -1,6 +1,6 @@
 from ai_agents.genetic import ConstantWeightsGenetic
 from spades import Spades
-from agent import DummyAgent, UserAgent
+from agent import DummyAgent, UserAgent, GreedyAgent
 
 
 def dummy_game():
@@ -16,7 +16,7 @@ def one_user_game():
 
 
 def one_genetic_game():
-    players = [UserAgent(), ConstantWeightsGenetic(bid_weights_file='output/constant_weights_genetic__bid_weights', play_weights_file='output/constant_weights_genetic__play_weights'), UserAgent(), 
+    players = [GreedyAgent(), ConstantWeightsGenetic(bid_weights_file='output/constant_weights_genetic__bid_weights', play_weights_file='output/constant_weights_genetic__play_weights'), GreedyAgent(), 
     ConstantWeightsGenetic(bid_weights_file='output/constant_weights_genetic__bid_weights', play_weights_file='output/constant_weights_genetic__play_weights')]
     return players
 
